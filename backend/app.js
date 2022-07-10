@@ -54,6 +54,7 @@ app.use(
   graphqlHTTP({
     schema: graphqlSchema,
     rootValue: graphqlResolver,
+    graphiql: true
   })
 );
 
@@ -65,5 +66,5 @@ app.use((error, req, res, next) => {
   res.status(status).json({ message: message, data: data });
 });
 
-mongoose.connect("mongodb://localhost:27017").catch((err) => console.log(err));
+mongoose.connect("mongodb://localhost:27017/graphql").catch((err) => console.log(err));
 app.listen(8080);
