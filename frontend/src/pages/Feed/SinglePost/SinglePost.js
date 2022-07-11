@@ -14,16 +14,19 @@ class SinglePost extends Component {
 
   componentDidMount() {
     const postId = this.props.match.params.postId;
+
     const graphqlQuery = {
       query: `
-        post(id: "${postId}") {
-          title
-          content
-          imageUrl
-          creator {
-            name
+        {
+          post(id: "${postId}") {
+            title
+            content
+            imageUrl
+            creator {
+              name
+            }
+            createdAt
           }
-          createdAt
         }
       `
     }
@@ -43,11 +46,14 @@ class SinglePost extends Component {
         return res.json();
       })
       .then(resData => {
+        if (resData.errors) {
+          throw new Error('Fetching post failed!');
+        }
         this.setState({
           title: resData.data.post.title,
           author: resData.data.post.creator.name,
           image: 'http://localhost:8080/' + resData.data.post.imageUrl,
-          date: new Date(resData.post.createdAt).toLocaleDateString('en-US'),
+          date: new Date(resData.data.post.createdAt).toLocaleDateString('en-US'),
           content: resData.data.post.content
         });
       })

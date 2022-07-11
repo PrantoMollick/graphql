@@ -65,10 +65,9 @@ app.put('/post-image', (req, res, next) => {
     return res.status(200).json({ message: 'No File provided!' });
   }
 
-  if(req.body.oldPath) {
+  if (req.body.oldPath) {
     clearImage(req.body.oldPath);
   }
-
   return res.status(201).json({ message: 'File sotred', filePath: 'images/' + req.file.filename })
 }); 
 
