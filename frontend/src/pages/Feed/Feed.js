@@ -22,19 +22,32 @@ class Feed extends Component {
   };
 
   componentDidMount() {
-    fetch('http://localhost:8080/auth/status', {
+    const graphqlQuery = {
+      query: `
+        {
+          user {
+            status
+          }
+        }          
+      `
+    };
+
+    fetch('http://localhost:8080/graphql', {
+      method: 'POST',
       headers: {
-        Authorization: 'Bearer ' + this.props.token
-      }
+        Authorization: 'Bearer ' + this.props.token,
+        'Content-Type': 'application/json'
+      }, 
+      body: JSON.stringify(graphqlQuery)
     })
       .then(res => {
-        if (res.status !== 200) {
-          throw new Error('Failed to fetch user status.');
-        }
         return res.json();
       })
       .then(resData => {
-        this.setState({ status: resData.status });
+        if(resData.errors) {
+          throw new Error('Fetching status Failed!');
+        }
+        this.setState({ status: resData.data.user.status });
       })
       .catch(this.catchError);
 
@@ -56,8 +69,8 @@ class Feed extends Component {
     }
     const graphqlQuery = {
       query: `
-        {
-          posts(page: ${page}) {
+        query FetchPosts($page: Int) {
+          posts(page: $page) {
             posts {
               _id
               title
@@ -70,7 +83,10 @@ class Feed extends Component {
             totalPosts
           }
         }
-      `
+      `,
+      variables: {
+        page: page
+      }
     };
     fetch('http://localhost:8080/graphql', {
       method: 'POST',
@@ -103,20 +119,27 @@ class Feed extends Component {
 
   statusUpdateHandler = event => {
     event.preventDefault();
-    fetch('http://localhost:8080/auth/status', {
-      method: 'PATCH',
+    const graphqlQuery = {
+      query: `
+        mutation UpdateUserStatus($userStatus: String!) {
+          updateStatus(status: $userStatus) {
+            status
+          }
+        }
+      `,
+      variables: {
+        userStatus: this.state.status
+      }
+    };
+    fetch('http://localhost:8080/graphql', {
+      method: 'POST',
       headers: {
         Authorization: 'Bearer ' + this.props.token,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        status: this.state.status
-      })
+      body: JSON.stringify(graphqlQuery)
     })
       .then(res => {
-        if (res.status !== 200 && res.status !== 201) {
-          throw new Error("Can't update status!");
-        }
         return res.json();
       })
       .then(resData => {
@@ -164,31 +187,32 @@ class Feed extends Component {
       .then(fileResData => {
         const imageUrl = fileResData.filePath;
         let graphqlQuery = {
-          query: `
-          mutation {
-            createPost(postInput: {title: "${postData.title}", content: "${
-            postData.content
-          }", imageUrl: "${imageUrl}"}) {
-              _id
-              title
-              content
-              imageUrl
-              creator {
-                name
+            query: `
+            mutation CreateNewPost($title: String!, $content: String!, $imageUrl: String!) {
+              createPost(postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
+                _id
+                title
+                content
+                imageUrl
+                creator {
+                  name
+                }
+                createdAt
               }
-              createdAt
             }
+          `,
+          variables: {
+            title: postData.title,
+            content: postData.content,
+            imageUrl: imageUrl
           }
-        `
         };
 
         if (this.state.editPost) {
           graphqlQuery = {
             query: `
-              mutation {
-                updatePost(id: "${this.state.editPost._id}", postInput: {title: "${postData.title}", content: "${
-                postData.content
-              }", imageUrl: "${imageUrl}"}) {
+              mutation UpdateExistingPost($postId: ID!, $title: String!, $content: String!, $imageUrl: String!) {
+                updatePost(id: $postId, postInput: {title: $title, content: $content, imageUrl: $imageUrl}) {
                   _id
                   title
                   content
@@ -199,8 +223,13 @@ class Feed extends Component {
                   createdAt
                 }
               }
-            
-            `
+            `,
+            variables: {
+              postId: this.state.editPost._id,
+              title: postData.title,
+              content: postData.content, 
+              imageUrl: imageUrl
+            }
           }
         }
 
